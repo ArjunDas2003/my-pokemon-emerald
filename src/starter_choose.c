@@ -1,4 +1,5 @@
 #include "global.h"
+#include "random.h"
 #include "bg.h"
 #include "data.h"
 #include "decompress.h"
@@ -422,7 +423,7 @@ void GenerateStarterChoices(void)
         enum Species chosen;
         do
         {
-            u32 index = Random() % sValidStarterPoolCount;
+            u32 index = Random32() % sValidStarterPoolCount;
             chosen = sValidStarterPool[index];
             duplicate = FALSE;
             for (u32 j = 0; j < i; j++)
@@ -436,7 +437,7 @@ void GenerateStarterChoices(void)
         } while (duplicate && sValidStarterPoolCount >= STARTER_MON_COUNT);
 
         sStarterMon[i] = chosen;
-        sStarterShiny[i] = ((Random() % 32) == 0);
+        sStarterShiny[i] = ((Random32() % 32) == 0);
     }
 }
 
