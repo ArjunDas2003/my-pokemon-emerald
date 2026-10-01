@@ -3264,19 +3264,28 @@ u32 GetSpeciesFinalEvolutionRawBST(enum Species species)
     return GetSpeciesFinalEvolutionRawBSTRecurse(species, 0);
 }
 
+static u8 sSpeciesStatBonusCache[NUM_SPECIES];
+
 u32 GetSpeciesStatBonus(enum Species species)
 {
     species = SanitizeSpeciesId(species);
     if (species == SPECIES_NONE || species >= NUM_SPECIES || gSpeciesInfo[species].baseHP == 0)
         return 0;
 
-    u32 finalBst = GetSpeciesFinalEvolutionRawBST(species);
-    if (finalBst >= 600)
-        return 1;
-    if (finalBst <= 325)
-        return 20;
+    if (sSpeciesStatBonusCache[species] != 0)
+        return sSpeciesStatBonusCache[species] - 1;
 
-    return 1 + ((600 - finalBst) * 19) / (600 - 325);
+    u32 finalBst = GetSpeciesFinalEvolutionRawBST(species);
+    u32 bonus;
+    if (finalBst >= 600)
+        bonus = 1;
+    else if (finalBst <= 325)
+        bonus = 20;
+    else
+        bonus = 1 + ((600 - finalBst) * 19) / (600 - 325);
+
+    sSpeciesStatBonusCache[species] = (u8)(bonus + 1);
+    return bonus;
 }
 
 bool32 IsValidStarterSpecies(enum Species species)

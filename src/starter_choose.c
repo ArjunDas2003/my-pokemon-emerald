@@ -338,22 +338,74 @@ static const struct SpriteTemplate sSpriteTemplate_StarterCircle =
     .callback = SpriteCB_StarterPokemon
 };
 
-// .text
-void GenerateStarterChoices(void)
-{
-    u32 validCount = 0;
-    static enum Species validSpecies[NUM_SPECIES];
-    u32 i;
+static u16 sValidStarterPool[500];
+static u16 sValidStarterPoolCount = 0;
 
+static void InitStarterPool(void)
+{
+    static bool8 sHasPreEvo[NUM_SPECIES];
+    u32 i, j;
+
+    if (sValidStarterPoolCount != 0)
+        return;
+
+    // Single pass to flag species that evolve from something
     for (i = 1; i < NUM_SPECIES; i++)
     {
-        if (IsValidStarterSpecies(i))
+        const struct Evolution *evolutions = gSpeciesInfo[i].evolutions;
+        if (evolutions == NULL)
+            continue;
+        for (j = 0; evolutions[j].method != EVOLUTIONS_END; j++)
         {
-            validSpecies[validCount++] = i;
+            enum Species target = evolutions[j].targetSpecies;
+            if (target > SPECIES_NONE && target < NUM_SPECIES)
+                sHasPreEvo[target] = TRUE;
         }
     }
 
-    if (validCount == 0)
+    // Single pass to collect all valid base-stage species
+    for (i = 1; i < NUM_SPECIES; i++)
+    {
+        if (gSpeciesInfo[i].baseHP == 0 || gSpeciesInfo[i].natDexNum == NATIONAL_DEX_NONE)
+            continue;
+
+        const struct SpeciesInfo *info = &gSpeciesInfo[i];
+        if (info->isRestrictedLegendary
+         || info->isSubLegendary
+         || info->isMythical
+         || info->isUltraBeast
+         || info->isParadox
+         || info->isMegaEvolution
+         || info->isPrimalReversion
+         || info->isUltraBurst
+         || info->isGigantamax
+         || info->isTeraForm
+         || info->isTotem
+         || info->cannotBeTraded)
+            continue;
+
+        if (sHasPreEvo[i])
+            continue;
+
+        const u16 *formTable = info->formSpeciesIdTable;
+        if (formTable != NULL && i != GET_BASE_SPECIES_ID(i))
+        {
+            if (!info->isAlolanForm && !info->isGalarianForm && !info->isHisuianForm && !info->isPaldeanForm)
+                continue;
+        }
+
+        if (sValidStarterPoolCount < ARRAY_COUNT(sValidStarterPool))
+            sValidStarterPool[sValidStarterPoolCount++] = i;
+    }
+}
+
+void GenerateStarterChoices(void)
+{
+    u32 i;
+
+    InitStarterPool();
+
+    if (sValidStarterPoolCount == 0)
     {
         sStarterMon[0] = SPECIES_TREECKO;
         sStarterMon[1] = SPECIES_TORCHIC;
@@ -370,8 +422,8 @@ void GenerateStarterChoices(void)
         enum Species chosen;
         do
         {
-            u32 index = Random() % validCount;
-            chosen = validSpecies[index];
+            u32 index = Random() % sValidStarterPoolCount;
+            chosen = sValidStarterPool[index];
             duplicate = FALSE;
             for (u32 j = 0; j < i; j++)
             {
@@ -381,7 +433,7 @@ void GenerateStarterChoices(void)
                     break;
                 }
             }
-        } while (duplicate && validCount >= STARTER_MON_COUNT);
+        } while (duplicate && sValidStarterPoolCount >= STARTER_MON_COUNT);
 
         sStarterMon[i] = chosen;
         sStarterShiny[i] = ((Random() % 32) == 0);
